@@ -1,0 +1,14 @@
+[package]
+edition = "2021"
+name = "ferisu"
+version = "0.1.0"
+
+[dependencies]
+reqwest = "0.11.10"
+scraper = "0.13.0"
+tokio = { version = "1.17.0", features = ["full"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true
