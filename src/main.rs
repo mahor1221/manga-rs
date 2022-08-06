@@ -3,8 +3,7 @@ use scraper::Html;
 use scraper::Selector;
 use std::error::Error;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let manga = std::fs::read_to_string("./tmp/manga1.html")?;
     let manga = Html::parse_document(&manga);
 
@@ -29,22 +28,21 @@ trait Extension {
 
 struct Manga {}
 impl Extension for Manga {
-    fn name(book: &Html) -> Result<Option<&str>, Box<dyn Error>> {
+    fn name(manga: &Html) -> Result<Option<&str>, Box<dyn Error>> {
         //let selector = Selector::parse(".story-info-right h1").unwrap();
-        let selector = Selector::parse(".story-info-left img").unwrap();
-        let name = book
+        let selector = Selector::parse("#info > h1").unwrap();
+        let name = manga
             .select(&selector)
             // Returns None if String is empty
             //.map(|e| Some(e.inner_html()).filter(|e| !e.is_empty()))
-            .map(|e| e.value().attr("title"))
-            .next()
-            .flatten();
+            .map(|e| e.value().name())
+            .next();
         Ok(name)
     }
 
-    fn cover(book: &Html) -> Result<Option<&str>, Box<dyn Error>> {
+    fn cover(manga: &Html) -> Result<Option<&str>, Box<dyn Error>> {
         let selector = Selector::parse(".story-info-left img").unwrap();
-        let cover = book
+        let cover = manga
             .select(&selector)
             .map(|e| e.value().attr("src"))
             .next()
@@ -52,9 +50,9 @@ impl Extension for Manga {
         Ok(cover)
     }
 
-    fn chapters(book: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>> {
+    fn chapters(manga: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>> {
         let selector = Selector::parse(".panel-story-chapter-list a").unwrap();
-        let chapters: Vec<&str> = book
+        let chapters: Vec<&str> = manga
             .select(&selector)
             .filter_map(|e| e.value().attr("href"))
             .collect();
@@ -76,10 +74,10 @@ impl Extension for Manga {
 
 struct ManganeloTV {}
 impl Extension for ManganeloTV {
-    fn name(book: &Html) -> Result<Option<&str>, Box<dyn Error>> {
+    fn name(manga: &Html) -> Result<Option<&str>, Box<dyn Error>> {
         //let selector = Selector::parse(".story-info-right h1").unwrap();
         let selector = Selector::parse(".story-info-left img").unwrap();
-        let name = book
+        let name = manga
             .select(&selector)
             // Returns None if String is empty
             //.map(|e| Some(e.inner_html()).filter(|e| !e.is_empty()))
@@ -89,9 +87,9 @@ impl Extension for ManganeloTV {
         Ok(name)
     }
 
-    fn cover(book: &Html) -> Result<Option<&str>, Box<dyn Error>> {
+    fn cover(manga: &Html) -> Result<Option<&str>, Box<dyn Error>> {
         let selector = Selector::parse(".story-info-left img").unwrap();
-        let cover = book
+        let cover = manga
             .select(&selector)
             .map(|e| e.value().attr("src"))
             .next()
@@ -99,9 +97,9 @@ impl Extension for ManganeloTV {
         Ok(cover)
     }
 
-    fn chapters(book: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>> {
+    fn chapters(manga: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>> {
         let selector = Selector::parse(".panel-story-chapter-list a").unwrap();
-        let chapters: Vec<&str> = book
+        let chapters: Vec<&str> = manga
             .select(&selector)
             .filter_map(|e| e.value().attr("href"))
             .collect();
