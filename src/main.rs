@@ -3,64 +3,73 @@ use scraper::Html;
 use scraper::Selector;
 use std::error::Error;
 
+type Url<'a> = &'a str;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let manga = std::fs::read_to_string("./tmp/manga1.html")?;
-    let manga = Html::parse_document(&manga);
+    let str = std::fs::read_to_string("./tmp/manga1.html")?;
+    let html = Html::parse_document(&str);
 
-    let name = Manga::name(&manga)?;
-    let cover = Manga::cover(&manga)?;
-    let chapters = Manga::chapters(&manga)?;
-    let pages = Manga::pages(&manga)?;
+    let name = TestSource::name(&html)?;
+    let cover = TestSource::cover(&html)?;
+    let pages = TestSource::pages(&html)?;
 
     dbg!(name);
     dbg!(cover);
-    //dbg!(chapters);
     dbg!(pages);
     Ok(())
 }
 
-trait Extension {
-    fn cover(manga: &Html) -> Result<Option<&str>, Box<dyn Error>>;
-    fn name(manga: &Html) -> Result<Option<String>, Box<dyn Error>>;
-    fn chapters(manga: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>>;
-    fn pages(chapter: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>>;
+// TODO: Is it required to check if returned string is empty?
+trait Manga {
+    // Using Box<str> becouse scrapper sometimes returns String sometimes &str
+    fn name(html: &Html) -> Result<Option<Box<str>>, Box<dyn Error>>;
+    fn cover(html: &Html) -> Result<Option<Url>, Box<dyn Error>>;
+    fn pages(html: &Html) -> Result<Option<Vec<Url>>, Box<dyn Error>>;
 }
-trait Tag {
-    fn tag(manga: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>>;
+trait MangaChapter {
+    fn chaps(html: &Html) -> Result<Option<Vec<Url>>, Box<dyn Error>>;
+}
+trait MangaChapterThumbnail {
+    fn chaps_thumb(html: &Html) -> Result<Option<Vec<Url>>, Box<dyn Error>>;
+}
+trait MangaTag {
+    fn tags(html: &Html) -> Result<Option<Vec<Url>>, Box<dyn Error>>;
 }
 
-struct Manga {}
-impl Extension for Manga {
-    fn name(manga: &Html) -> Result<Option<String>, Box<dyn Error>> {
+struct TestSource {}
+impl Manga for TestSource {
+    fn name(html: &Html) -> Result<Option<Box<str>>, Box<dyn Error>> {
         let selector = Selector::parse("#info h1.title span.pretty").unwrap();
-        let name = manga
+        let name = html
             .select(&selector)
             .next()
-            .and_then(|e| Some(e.inner_html()));
+            .and_then(|e| Some(e.inner_html().into_boxed_str()));
         Ok(name)
     }
-
-    fn cover(manga: &Html) -> Result<Option<&str>, Box<dyn Error>> {
+    fn cover(html: &Html) -> Result<Option<Url>, Box<dyn Error>> {
         let selector = Selector::parse("#cover img").unwrap();
-        let cover = manga
+        let cover = html
             .select(&selector)
             .map(|e| e.value().attr("data-src"))
             .next()
             .flatten();
         Ok(cover)
     }
-
-    fn chapters(manga: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>> {
-        let chapters = Self::name(manga);
+    fn pages(html: &Html) -> Result<Option<Vec<Url>>, Box<dyn Error>> {
+        let selector = Selector::parse("#thumbnail-container img").unwrap();
+        let pages = html
+            .select(&selector)
+            .filter_map(|e| e.value().attr("data-src"))
+            .collect::<Vec<_>>();
         // Returns None if Vector is empty
-        Ok(Some(chapters).filter(|v| !v.is_empty()))
+        Ok(Some(pages).filter(|v| !v.is_empty()))
     }
-
-    fn pages(chapter: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>> {
-        let selector =
-            Selector::parse("#thumb-container img").unwrap();
-        let pages = chapter
+}
+impl MangaChapterThumbnail for TestSource {
+    fn chaps_thumb(html: &Html) -> Result<Option<Vec<Url>>, Box<dyn Error>> {
+        let selector = Selector::parse("#thumbnail-container img").unwrap();
+        let pages = html
             .select(&selector)
             .filter_map(|e| e.value().attr("data-src"))
             .collect::<Vec<_>>();
@@ -70,48 +79,47 @@ impl Extension for Manga {
 }
 
 struct ManganeloTV {}
-impl Extension for ManganeloTV {
-    fn name(manga: &Html) -> Result<Option<String>, Box<dyn Error>> {
+impl Manga for ManganeloTV {
+    fn name(html: &Html) -> Result<Option<Box<str>>, Box<dyn Error>> {
         //let selector = Selector::parse(".story-info-right h1").unwrap();
         let selector = Selector::parse(".story-info-left img").unwrap();
-        let name = manga
+        let name = html
             .select(&selector)
-            // Returns None if String is empty
-            //.map(|e| Some(e.inner_html()).filter(|e| !e.is_empty()))
             .map(|e| e.value().attr("title"))
             .next()
             .flatten()
-            .and_then(|str| Some(str.to_string()));
+            // Returns None if String is empty
+            //.map(|e| Some(e.inner_html()).filter(|e| !e.is_empty()))
+            .and_then(|s| Some(s.to_string().into_boxed_str()));
         Ok(name)
     }
-
-    fn cover(manga: &Html) -> Result<Option<&str>, Box<dyn Error>> {
+    fn cover(html: &Html) -> Result<Option<Url>, Box<dyn Error>> {
         let selector = Selector::parse(".story-info-left img").unwrap();
-        let cover = manga
+        let cover = html
             .select(&selector)
             .map(|e| e.value().attr("src"))
             .next()
             .flatten();
         Ok(cover)
     }
-
-    fn chapters(manga: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>> {
-        let selector = Selector::parse(".panel-story-chapter-list a").unwrap();
-        let chapters: Vec<&str> = manga
-            .select(&selector)
-            .filter_map(|e| e.value().attr("href"))
-            .collect();
-        // Returns None if Vector is empty
-        Ok(Some(chapters).filter(|v| !v.is_empty()))
-    }
-
-    fn pages(chapter: &Html) -> Result<Option<Vec<&str>>, Box<dyn Error>> {
+    fn pages(html: &Html) -> Result<Option<Vec<Url>>, Box<dyn Error>> {
         let selector =
             Selector::parse(".container-chapter-reader img").unwrap();
-        let pages: Vec<&str> = chapter
+        let pages: Vec<Url> = html
             .select(&selector)
             .filter_map(|e| e.value().attr("data-src"))
             .collect();
         Ok(Some(pages).filter(|v| !v.is_empty()))
+    }
+}
+impl MangaChapter for ManganeloTV {
+    fn chaps(html: &Html) -> Result<Option<Vec<Url>>, Box<dyn Error>> {
+        let selector = Selector::parse(".panel-story-chapter-list a").unwrap();
+        let chapters = html
+            .select(&selector)
+            .filter_map(|e| e.value().attr("href"))
+            .collect::<Vec<Url>>();
+        // Returns None if Vector is empty
+        Ok(Some(chapters).filter(|v| !v.is_empty()))
     }
 }
