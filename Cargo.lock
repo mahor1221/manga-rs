@@ -155,10 +155,8 @@ dependencies = [
 name = "ferisu"
 version = "0.1.0"
 dependencies = [
- "cssparser",
  "reqwest",
  "scraper",
- "selectors",
  "tokio",
 ]
 

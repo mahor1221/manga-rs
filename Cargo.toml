@@ -6,11 +6,11 @@ version = "0.1.0"
 # Add cssparser and selectors to handle scraper errors
 # 0.27.2 and 0.22.0 are the versions used by scrapper
 # See issue: https://github.com/causal-agent/scraper/issues/60
+#cssparser = "0.27.2"
+#selectors = "0.22.0"
 [dependencies]
 reqwest = "0.11.10"
 scraper = "0.13.0"
-cssparser = "0.27.2"
-selectors = "0.22.0"
 tokio = { version = "1.17.0", features = ["full"] }
 
 [profile.release]
