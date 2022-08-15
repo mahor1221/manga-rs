@@ -1,6 +1,7 @@
 //use reqwest;
 use scraper::Html;
 use scraper::Selector;
+use std::iter::zip;
 mod error;
 use error::Result;
 // TODO: Replace unwraps with proper errors
@@ -62,32 +63,26 @@ impl ComicSource for TestSource {
             .to_owned()
             .into_boxed_str();
 
+        let selector = Selector::parse("#thumbnail-container a").unwrap();
+        let pages_image_url = html.select(&selector).map(|e| {
+            e.value().attr("href").unwrap().to_owned().into_boxed_str()
+        });
         let selector = Selector::parse("#thumbnail-container img").unwrap();
-        let pages_thumbnail_url = html
-            .select(&selector)
-            .map(|e| {
-                e.value()
-                    .attr("data-src")
-                    .unwrap()
-                    .to_owned()
-                    .into_boxed_str()
+        let pages_thumbnail_url = html.select(&selector).map(|e| {
+            e.value()
+                .attr("data-src")
+                .unwrap()
+                .to_owned()
+                .into_boxed_str()
+        });
+        //assert_eq!(pages_thumbnail_url.len(), pages_image_url.len());
+        let pages = zip(pages_image_url, pages_thumbnail_url)
+            .map(|(image_url, thumbnail_url)| Page {
+                image_url,
+                thumbnail_url,
             })
-            .collect::<Vec<_>>();
-
-        //let selector = Selector::parse("#thumbnail-container img").unwrap();
-        let pages_image_url = html
-            .select(&selector)
-            .map(|e| {
-                e.value()
-                    .attr("data-src")
-                    .unwrap()
-                    .to_owned()
-                    .into_boxed_str()
-            })
-            .collect::<Vec<_>>();
-
-        // check two vectors lenght
-        //let pages = pages_image_url.iter().zip(pages_image_url.iter());
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
 
         Ok(Comic {
             name,
@@ -98,7 +93,7 @@ impl ComicSource for TestSource {
             chapters: Box::from([Chapter {
                 name: None,
                 cover_url: None,
-                pages: Box::from([]),
+                pages,
             }]),
         })
     }
