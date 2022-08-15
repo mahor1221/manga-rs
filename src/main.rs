@@ -22,16 +22,16 @@ pub struct Page {
 #[derive(Debug)]
 pub struct Chapter {
     pub name: Option<Box<str>>,
-    pub cover_url: Option<Box<str>>,
     pub pages: Box<[Page]>,
 }
 #[derive(Debug)]
 pub struct Comic {
     pub name: Box<str>,
-    pub cover_url: Box<str>,
-    pub author: Box<str>,
-    pub description: Box<str>,
+    pub description: Option<Box<str>>,
+    pub language: Box<str>,
+    pub authors: Box<[Box<str>]>,
     pub tags: Option<Box<[Box<str>]>>,
+    pub cover_url: Box<str>,
     pub chapters: Box<[Chapter]>,
 }
 
@@ -51,6 +51,29 @@ impl ComicSource for TestSource {
             .unwrap()
             .inner_html()
             .into_boxed_str();
+
+        let selector = Selector::parse("#tags div.tag-container").unwrap();
+        let selector2 = Selector::parse("a.tag span.name").unwrap();
+        let language = html
+            .select(&selector)
+            .find(|e| e.inner_html().contains("Languages"))
+            .unwrap()
+            .select(&selector2)
+            .last()
+            .unwrap()
+            .inner_html()
+            .into_boxed_str();
+
+        let selector = Selector::parse("#tags div.tag-container").unwrap();
+        let selector2 = Selector::parse("a.tag span.name").unwrap();
+        let authors = html
+            .select(&selector)
+            .find(|e| e.inner_html().contains("Artists"))
+            .unwrap()
+            .select(&selector2)
+            .map(|e| e.inner_html().into_boxed_str())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
 
         let selector = Selector::parse("#cover img").unwrap();
         let cover_url = html
@@ -83,18 +106,16 @@ impl ComicSource for TestSource {
             })
             .collect::<Vec<_>>()
             .into_boxed_slice();
+        let chapters = Box::from([Chapter { name: None, pages }]);
 
         Ok(Comic {
             name,
-            cover_url,
-            author: Box::from(""),
-            description: Box::from(""),
+            description: None,
+            language,
+            authors,
             tags: None,
-            chapters: Box::from([Chapter {
-                name: None,
-                cover_url: None,
-                pages,
-            }]),
+            cover_url,
+            chapters,
         })
     }
 }
