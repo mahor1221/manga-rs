@@ -24,15 +24,20 @@ pub struct Chapter {
     pub name: Option<Box<str>>,
     pub pages: Box<[Page]>,
 }
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Comic {
-    pub authors: Box<[Box<str>]>,
-    pub chapters: Box<[Chapter]>,
+    //pub url: Box<str>,
+    pub title: Box<str>,
     pub cover_url: Box<str>,
-    pub description: Option<Box<str>>,
     pub language: Box<str>,
-    pub name: Box<str>,
+    pub chapters: Box<[Chapter]>,
+    pub description: Option<Box<str>>,
     pub tags: Option<Box<[Box<str>]>>,
+    pub authors: Option<Box<[Box<str>]>>,
+    pub artists: Option<Box<[Box<str>]>>,
+    pub groups: Option<Box<[Box<str>]>>,
+    pub parodies: Option<Box<[Box<str>]>>,
+    pub characters: Option<Box<[Box<str>]>>,
 }
 
 trait ComicSource {
@@ -45,51 +50,17 @@ impl ComicSource for TestSource {
         let html = Html::parse_document(&html);
 
         let selector = Selector::parse("#info h1.title span.pretty").unwrap();
-        let name = html
+        let title = html
             .select(&selector)
             .next()
             .unwrap()
             .inner_html()
             .split(" | ")
-            .next() // Japanese name
-            //.last() // English name
+            .next() // Romaji
+            //.last() // English
             .unwrap()
             .to_owned()
             .into_boxed_str();
-
-        let selector = Selector::parse("#tags div.tag-container").unwrap();
-        let selector2 = Selector::parse("a.tag span.name").unwrap();
-        let language = html
-            .select(&selector)
-            .find(|e| e.inner_html().contains("Languages"))
-            .unwrap()
-            .select(&selector2)
-            .last()
-            .unwrap()
-            .inner_html()
-            .into_boxed_str();
-
-        let selector = Selector::parse("#tags div.tag-container").unwrap();
-        let selector2 = Selector::parse("a.tag span.name").unwrap();
-        let authors = html
-            .select(&selector)
-            .find(|e| e.inner_html().contains("Artists"))
-            .unwrap()
-            .select(&selector2)
-            .map(|e| e.inner_html().into_boxed_str())
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-
-        let selector = Selector::parse("#tags div.tag-container").unwrap();
-        let selector2 = Selector::parse("a.tag span.name").unwrap();
-        let tags = html
-            .select(&selector)
-            .find(|e| e.inner_html().contains("Tags"))
-            .unwrap()
-            .select(&selector2)
-            .map(|e| e.inner_html().into_boxed_str())
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
 
         let selector = Selector::parse("#cover img").unwrap();
         let cover_url = html
@@ -114,7 +85,6 @@ impl ComicSource for TestSource {
                 .to_owned()
                 .into_boxed_str()
         });
-        //assert_eq!(pages_thumbnail_url.len(), pages_image_url.len());
         let pages = zip(pages_image_url, pages_thumbnail_url)
             .map(|(image_url, thumbnail_url)| Page {
                 image_url,
@@ -122,59 +92,76 @@ impl ComicSource for TestSource {
             })
             .collect::<Vec<_>>()
             .into_boxed_slice();
-        let chapters = Box::from([Chapter { name: None, pages }]);
+        let chapters = Box::new([Chapter { name: None, pages }]);
+
+        let selector = Selector::parse("#tags div.tag-container").unwrap();
+        let selector2 = Selector::parse("a.tag span.name").unwrap();
+        let language = html
+            .select(&selector)
+            .find(|e| e.inner_html().contains("Languages"))
+            .unwrap()
+            .select(&selector2)
+            .last()
+            .unwrap()
+            .inner_html()
+            .into_boxed_str();
+
+        let tags = html
+            .select(&selector)
+            .find(|e| e.inner_html().contains("Tags"))
+            .unwrap()
+            .select(&selector2)
+            .map(|e| e.inner_html().into_boxed_str())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        let artists = html
+            .select(&selector)
+            .find(|e| e.inner_html().contains("Artists"))
+            .unwrap()
+            .select(&selector2)
+            .map(|e| e.inner_html().into_boxed_str())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        let groups = html
+            .select(&selector)
+            .find(|e| e.inner_html().contains("Groups"))
+            .unwrap()
+            .select(&selector2)
+            .map(|e| e.inner_html().into_boxed_str())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        let parodies = html
+            .select(&selector)
+            .find(|e| e.inner_html().contains("Parodies"))
+            .unwrap()
+            .select(&selector2)
+            .map(|e| e.inner_html().into_boxed_str())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        let characters = html
+            .select(&selector)
+            .find(|e| e.inner_html().contains("Characters"))
+            .unwrap()
+            .select(&selector2)
+            .map(|e| e.inner_html().into_boxed_str())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
 
         Ok(Comic {
-            authors,
-            chapters,
+            title,
             cover_url,
-            description: None,
             language,
-            name,
+            chapters,
             tags: Some(tags),
+            artists: Some(artists),
+            groups: Some(groups),
+            parodies: Some(parodies),
+            characters: Some(characters),
+            ..Default::default()
         })
     }
 }
-
-//struct ManganeloTV {}
-//impl Manga for ManganeloTV {
-//    fn name(html: &Html) -> Result<Box<str>> {
-//        let selector = Selector::parse(".story-info-left img")?;
-//        let value = html
-//            .select(&selector)
-//            .next()
-//            .and_then(|e| e.value().attr("title"))
-//            .and_then(|s| Some(s.to_string().into_boxed_str()))
-//            .filter(|s| !s.is_empty());
-//        Ok(value)
-//    }
-//    fn cover(html: &Html) -> Result<Url> {
-//        let selector = Selector::parse(".story-info-left img")?;
-//        let value = html
-//            .select(&selector)
-//            .next()
-//            .and_then(|e| e.value().attr("src"))
-//            .filter(|s| !s.is_empty());
-//        Ok(value)
-//    }
-//    fn pages(html: &Html) -> Result<Vec<Url>> {
-//        let selector = Selector::parse(".container-chapter-reader img")?;
-//        let value = html
-//            .select(&selector)
-//            .filter_map(|e| e.value().attr("data-src").filter(|s| !s.is_empty()))
-//            .collect::<Vec<_>>();
-//        let value = Some(value).filter(|v| !v.is_empty());
-//        Ok(value)
-//    }
-//}
-//impl MangaChapter for ManganeloTV {
-//    fn chapters(html: &Html) -> Result<Vec<Url>> {
-//        let selector = Selector::parse(".panel-story-chapter-list a")?;
-//        let value = html
-//            .select(&selector)
-//            .filter_map(|e| e.value().attr("href").filter(|s| !s.is_empty()))
-//            .collect::<Vec<_>>();
-//        let value = Some(value).filter(|v| !v.is_empty());
-//        Ok(value)
-//    }
-//}
