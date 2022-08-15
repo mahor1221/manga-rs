@@ -26,13 +26,13 @@ pub struct Chapter {
 }
 #[derive(Debug)]
 pub struct Comic {
-    pub name: Box<str>,
+    pub authors: Box<[Box<str>]>,
+    pub chapters: Box<[Chapter]>,
+    pub cover_url: Box<str>,
     pub description: Option<Box<str>>,
     pub language: Box<str>,
-    pub authors: Box<[Box<str>]>,
+    pub name: Box<str>,
     pub tags: Option<Box<[Box<str>]>>,
-    pub cover_url: Box<str>,
-    pub chapters: Box<[Chapter]>,
 }
 
 trait ComicSource {
@@ -50,6 +50,11 @@ impl ComicSource for TestSource {
             .next()
             .unwrap()
             .inner_html()
+            .split(" | ")
+            .next() // Japanese name
+            //.last() // English name
+            .unwrap()
+            .to_owned()
             .into_boxed_str();
 
         let selector = Selector::parse("#tags div.tag-container").unwrap();
@@ -69,6 +74,17 @@ impl ComicSource for TestSource {
         let authors = html
             .select(&selector)
             .find(|e| e.inner_html().contains("Artists"))
+            .unwrap()
+            .select(&selector2)
+            .map(|e| e.inner_html().into_boxed_str())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        let selector = Selector::parse("#tags div.tag-container").unwrap();
+        let selector2 = Selector::parse("a.tag span.name").unwrap();
+        let tags = html
+            .select(&selector)
+            .find(|e| e.inner_html().contains("Tags"))
             .unwrap()
             .select(&selector2)
             .map(|e| e.inner_html().into_boxed_str())
@@ -109,13 +125,13 @@ impl ComicSource for TestSource {
         let chapters = Box::from([Chapter { name: None, pages }]);
 
         Ok(Comic {
-            name,
+            authors,
+            chapters,
+            cover_url,
             description: None,
             language,
-            authors,
-            tags: None,
-            cover_url,
-            chapters,
+            name,
+            tags: Some(tags),
         })
     }
 }
