@@ -1,7 +1,18 @@
 [package]
-edition = "2021"
 name = "ferisu"
 version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+authors = ["Mahor1221 <mahor1221@pm.me>"]
+#description = """
+#"""
+
+#readme = "README.md"
+#documentation = "https://docs.rs/${name}"
+#homepage = "https://github.com/mahor1221/${name}"
+#repository = "https://github.com/mahor1221/${name}.git"
+#keywords = []
+#categories = []
 
 # Add cssparser and selectors to handle scraper errors
 # 0.27.2 and 0.22.0 are the versions used by scrapper
@@ -9,9 +20,9 @@ version = "0.1.0"
 #cssparser = "0.27.2"
 #selectors = "0.22.0"
 [dependencies]
-reqwest = "0.11.10"
-scraper = "0.13.0"
 tokio = { version = "1.17.0", features = ["full"] }
+scraper = "0.13.0"
+reqwest = { version = "0.11.10" }
 
 [profile.release]
 codegen-units = 1

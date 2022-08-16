@@ -1,16 +1,25 @@
-//use reqwest;
 use scraper::Html;
 use scraper::Selector;
 use std::iter::zip;
+//use std::process::Command;
 mod error;
 use error::Result;
 // TODO: Replace unwraps with proper errors
 
-fn main() -> Result<()> {
-    let html = std::fs::read_to_string("./tmp/manga1.html")?;
-    let comic = TestSource::comic(&html)?;
+#[tokio::main]
+async fn main() -> Result<()> {
+    //Command::new("sh").args(["-c", "chromedriver"]).output()?;
+    //const WEBSITE: &'static str = "";
+    //let html = reqwest::blocking::get(WEBSITE)?.text()?;
+    //const IMAGE: &'static str = "";
+    //let img = reqwest::get(IMAGE).await?.bytes().await?;
 
-    dbg!(comic);
+    //dbg!(&html);
+    //std::fs::write("tmp/temp.html", &html)?;
+
+    //let html = std::fs::read_to_string("./tmp/manga1.html")?;
+    //let comic = TestSource::comic(&html)?;
+    //dbg!(comic);
     Ok(())
 }
 

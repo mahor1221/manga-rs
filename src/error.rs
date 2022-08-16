@@ -1,4 +1,4 @@
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 // if I forward scrapper erros using commented section of this mod the
 // compiler will complain on running functions with `html: &Html` variable:
 // cannot return value referencing local variable `html`
