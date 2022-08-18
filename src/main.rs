@@ -9,11 +9,32 @@ use error::Result;
 #[tokio::main]
 async fn main() -> Result<()> {
     //Command::new("sh").args(["-c", "chromedriver"]).output()?;
-    //const WEBSITE: &'static str = "";
-    //let html = reqwest::blocking::get(WEBSITE)?.text()?;
-    //const IMAGE: &'static str = "";
-    //let img = reqwest::get(IMAGE).await?.bytes().await?;
+    const WEBSITE: &'static str = "https://www.useragentstring.com/pages/Browserlist";
 
+    //let mut bypasser =
+    //    cloudflare_bypasser::Bypasser::default().retry(3).wait(5);
+    //.random_user_agent(true)
+    //
+    //let (cookie, user_agent);
+    //loop {
+    //    if let Ok((c, ua)) = bypasser.bypass(WEBSITE) {
+    //        cookie = c;
+    //        user_agent = ua;
+    //        break;
+    //    }
+    //}
+    //
+    //let headers = {
+    //    let mut h = reqwest::header::HeaderMap::new();
+    //    h.insert(reqwest::header::COOKIE, cookie);
+    //    h.insert(reqwest::header::USER_AGENT, user_agent);
+    //    h
+    //};
+    //let client = reqwest::ClientBuilder::new()
+    //    .default_headers(headers)
+    //    .build()?;
+    //
+    //let html = client.get(WEBSITE).send().await?.text().await?;
     //dbg!(&html);
     //std::fs::write("tmp/temp.html", &html)?;
 
@@ -26,7 +47,7 @@ async fn main() -> Result<()> {
 #[derive(Debug)]
 pub struct Page {
     pub image_url: Box<str>,
-    pub thumbnail_url: Box<str>,
+    pub thumbnail_url: Option<Box<str>>,
 }
 #[derive(Debug)]
 pub struct Chapter {
@@ -97,7 +118,7 @@ impl ComicSource for TestSource {
         let pages = zip(pages_image_url, pages_thumbnail_url)
             .map(|(image_url, thumbnail_url)| Page {
                 image_url,
-                thumbnail_url,
+                thumbnail_url: Some(thumbnail_url),
             })
             .collect::<Vec<_>>()
             .into_boxed_slice();
