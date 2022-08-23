@@ -1,3 +1,4 @@
+// TODO: Replace unwraps with proper errors .ok_or(err)?
 use clap::Parser;
 use scraper::ElementRef;
 use scraper::Html;
@@ -5,7 +6,6 @@ use scraper::Selector;
 use std::iter::zip;
 mod error;
 use error::Result;
-// TODO: Replace unwraps with proper errors .ok_or(err)?
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -24,6 +24,7 @@ async fn main() -> Result<()> {
     let html = std::fs::read_to_string(cli.url)?;
     let comic = TestSource::comic(&html)?;
     dbg!(comic);
+
     Ok(())
 }
 
@@ -59,7 +60,7 @@ pub enum Lang<T> {
 #[derive(Debug, Default)]
 pub struct Comic {
     //pub url: Str,
-    pub title: Arr<Lang<Str>>,
+    pub titles: Arr<Lang<Str>>,
     pub cover_url: Str,
     pub languages: Arr<Str>,
     pub chapters: Arr<Chapter>,
@@ -67,7 +68,6 @@ pub struct Comic {
     pub description: Option<Str>,
     pub tags: Option<Arr<Str>>,
     pub authors: Option<Arr<Str>>,
-    pub artists: Option<Arr<Str>>,
     pub groups: Option<Arr<Str>>,
     pub parodies: Option<Arr<Str>>,
     pub characters: Option<Arr<Str>>,
@@ -82,23 +82,32 @@ impl ComicSource for TestSource {
     fn comic(html: &str) -> Result<Comic> {
         let html = Html::parse_document(&html);
 
+        let f = |h: &Html, s: &Selector| -> Option<Str> {
+            let s = h
+                .select(&s)
+                .next()?
+                .inner_html()
+                // extract the first text between bracket or parenthese blocks.
+                // for example:
+                //     [_] (_) text (_) -> text
+                //     text [_]         -> text
+                //     [_(_)] text      -> text
+                //     text1 (_) text2  -> text1
+                .split(&[']', ')'][..])
+                .filter(|s| !s.trim_start().starts_with(&['[', '('][..]))
+                .collect::<String>()
+                .split(&['[', '('][..])
+                .next()?
+                .trim()
+                .to_owned()
+                .into_boxed_str();
+            Some(s)
+        };
         let s = Selector::parse("#info h1.title span.pretty").unwrap();
-        let en = html
-            .select(&s)
-            .next()
-            .unwrap()
-            .inner_html()
-            .to_owned()
-            .into_boxed_str();
-        let s = Selector::parse("#info h1.title span.before").unwrap();
-        let ja = html
-            .select(&s)
-            .next()
-            .unwrap()
-            .inner_html()
-            .to_owned()
-            .into_boxed_str();
-        let title = Box::from([Lang::English(en), Lang::Japanese(ja)]);
+        let en = f(&html, &s).unwrap();
+        let s = Selector::parse("#info h2.title span.before").unwrap();
+        let ja = f(&html, &s).unwrap();
+        let titles = Box::from([Lang::English(en), Lang::Japanese(ja)]);
 
         let s = Selector::parse("#cover img").unwrap();
         let cover_url = html
@@ -155,7 +164,7 @@ impl ComicSource for TestSource {
             .and_then(f)
             .or(Some(Box::from([])));
 
-        let artists = html
+        let authors = html
             .select(&s)
             .find(|e| e.inner_html().contains("Artists"))
             .and_then(f)
@@ -180,12 +189,12 @@ impl ComicSource for TestSource {
             .or(Some(Box::from([])));
 
         Ok(Comic {
-            title,
+            titles,
             cover_url,
             languages,
             chapters,
             tags,
-            artists,
+            authors,
             groups,
             parodies,
             characters,
