@@ -3,7 +3,6 @@ use clap::Parser;
 use scraper::ElementRef;
 use scraper::Html;
 use scraper::Selector;
-use std::iter::zip;
 mod error;
 use error::Result;
 
@@ -18,11 +17,10 @@ struct Cli {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    //let html = reqwest::get(cli.url).await?.text().await?;
+    //let h = reqwest::get(cli.url).await?.text().await?;
     //std::fs::write("tmp/tmp.html", &html)?;
 
-    let html = std::fs::read_to_string(cli.url)?;
-    let comic = TestSource::comic(&html)?;
+    let comic = TestSource::comic(&cli.url)?;
     dbg!(comic);
 
     Ok(())
@@ -79,11 +77,53 @@ trait ComicSource {
 
 struct TestSource {}
 impl ComicSource for TestSource {
-    fn comic(html: &str) -> Result<Comic> {
-        let html = Html::parse_document(&html);
+    fn comic(url: &str) -> Result<Comic> {
+        let h = std::fs::read_to_string("./tmp/page.html")?;
+        let h = Html::parse_document(&h);
+        let s = Selector::parse("script").unwrap();
+        let pages = (|| {
+            let v = h
+                .select(&s)
+                .nth(3)?
+                .inner_html()
+                .lines()
+                .nth(4)?
+                .trim_start()
+                .strip_prefix("var images_ext = [\"")?
+                .strip_suffix("\"];")?
+                .split("\",\"")
+                .map(|s| s.to_owned().into_boxed_str())
+                .collect::<Vec<_>>()
+                .into_boxed_slice();
+            Some(v)
+        })()
+        .unwrap();
+        dbg!(pages);
 
-        let f = |h: &Html, s: &Selector| -> Option<Str> {
-            let s = h
+        let pages = Box::from([]);
+        let chapters = Box::new([Chapter { name: None, pages }]);
+
+        let h = std::fs::read_to_string(url)?;
+        let h = Html::parse_document(&h);
+        let s = Selector::parse("#cover img").unwrap();
+        let cover_url = (|| {
+            let v = h
+                .select(&s)
+                .next()?
+                .value()
+                .attr("data-src")?
+                .to_owned()
+                .into_boxed_str();
+            Some(v)
+        })()
+        .unwrap();
+
+        let s = Selector::parse("#info").unwrap();
+        let h = h.select(&s).next().unwrap().inner_html();
+        let h = Html::parse_fragment(&h);
+
+        let f = |h: &Html, s: &Selector| {
+            let v = h
                 .select(&s)
                 .next()?
                 .inner_html()
@@ -101,88 +141,50 @@ impl ComicSource for TestSource {
                 .trim()
                 .to_owned()
                 .into_boxed_str();
-            Some(s)
+            Some(v)
         };
-        let s = Selector::parse("#info h1.title span.pretty").unwrap();
-        let en = f(&html, &s).unwrap();
-        let s = Selector::parse("#info h2.title span.before").unwrap();
-        let ja = f(&html, &s).unwrap();
+        let s = Selector::parse("h1.title span.pretty").unwrap();
+        let en = f(&h, &s).unwrap();
+        let s = Selector::parse("h2.title span.before").unwrap();
+        let ja = f(&h, &s).unwrap();
         let titles = Box::from([Lang::English(en), Lang::Japanese(ja)]);
 
-        let s = Selector::parse("#cover img").unwrap();
-        let cover_url = html
-            .select(&s)
-            .next()
-            .unwrap()
-            .value()
-            .attr("data-src")
-            .unwrap()
-            .to_owned()
-            .into_boxed_str();
-
-        let s = Selector::parse("#thumbnail-container a").unwrap();
-        let pages_image_url = html.select(&s).map(|e| {
-            e.value().attr("href").unwrap().to_owned().into_boxed_str()
-        });
-        let s = Selector::parse("#thumbnail-container img").unwrap();
-        let pages_thumbnail_url = html.select(&s).map(|e| {
-            e.value()
-                .attr("data-src")
-                .unwrap()
-                .to_owned()
-                .into_boxed_str()
-        });
-        let pages = zip(pages_image_url, pages_thumbnail_url)
-            .map(|(image_url, thumbnail_url)| Page {
-                image_url,
-                thumbnail_url: Some(thumbnail_url),
-            })
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-        let chapters = Box::new([Chapter { name: None, pages }]);
-
-        let s = Selector::parse("#tags div.tag-container").unwrap();
+        let s = Selector::parse("a.tag span.name").unwrap();
         let f = |e: ElementRef| {
-            let s = Selector::parse("a.tag span.name").unwrap();
-            Some(
-                e.select(&s)
-                    .map(|e| e.inner_html().into_boxed_str())
-                    .collect::<Vec<_>>()
-                    .into_boxed_slice(),
-            )
+            let v = e
+                .select(&s)
+                .map(|e| e.inner_html().into_boxed_str())
+                .collect::<Vec<_>>()
+                .into_boxed_slice();
+            Some(v)
         };
-
-        let languages = html
+        let s = Selector::parse("#tags div.tag-container").unwrap();
+        let languages = h
             .select(&s)
             .find(|e| e.inner_html().contains("Languages"))
             .and_then(f)
             .unwrap_or(Box::from([]));
-
-        let tags = html
+        let tags = h
             .select(&s)
             .find(|e| e.inner_html().contains("Tags"))
             .and_then(f)
             .or(Some(Box::from([])));
-
-        let authors = html
+        let authors = h
             .select(&s)
             .find(|e| e.inner_html().contains("Artists"))
             .and_then(f)
             .or(Some(Box::from([])));
-
-        let groups = html
+        let groups = h
             .select(&s)
             .find(|e| e.inner_html().contains("Groups"))
             .and_then(f)
             .or(Some(Box::from([])));
-
-        let parodies = html
+        let parodies = h
             .select(&s)
             .find(|e| e.inner_html().contains("Parodies"))
             .and_then(f)
             .or(Some(Box::from([])));
-
-        let characters = html
+        let characters = h
             .select(&s)
             .find(|e| e.inner_html().contains("Characters"))
             .and_then(f)
