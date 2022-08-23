@@ -1,73 +1,58 @@
+use clap::Parser;
 use scraper::Html;
 use scraper::Selector;
 use std::iter::zip;
-//use std::process::Command;
 mod error;
 use error::Result;
 // TODO: Replace unwraps with proper errors
 
+#[derive(Parser)]
+#[clap(author, version, about)]
+struct Cli {
+    #[clap(value_parser)]
+    url: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    //Command::new("sh").args(["-c", "chromedriver"]).output()?;
-    const WEBSITE: &'static str = "https://www.useragentstring.com/pages/Browserlist";
+    let cli = Cli::parse();
 
-    //let mut bypasser =
-    //    cloudflare_bypasser::Bypasser::default().retry(3).wait(5);
-    //.random_user_agent(true)
-    //
-    //let (cookie, user_agent);
-    //loop {
-    //    if let Ok((c, ua)) = bypasser.bypass(WEBSITE) {
-    //        cookie = c;
-    //        user_agent = ua;
-    //        break;
-    //    }
-    //}
-    //
-    //let headers = {
-    //    let mut h = reqwest::header::HeaderMap::new();
-    //    h.insert(reqwest::header::COOKIE, cookie);
-    //    h.insert(reqwest::header::USER_AGENT, user_agent);
-    //    h
-    //};
-    //let client = reqwest::ClientBuilder::new()
-    //    .default_headers(headers)
-    //    .build()?;
-    //
-    //let html = client.get(WEBSITE).send().await?.text().await?;
-    //dbg!(&html);
-    //std::fs::write("tmp/temp.html", &html)?;
+    //let html = reqwest::get(cli.url).await?.text().await?;
+    //std::fs::write("tmp/tmp.html", &html)?;
 
-    //let html = std::fs::read_to_string("./tmp/manga1.html")?;
-    //let comic = TestSource::comic(&html)?;
-    //dbg!(comic);
+    let html = std::fs::read_to_string("./tmp/tmp.html")?;
+    let comic = TestSource::comic(&html)?;
+    dbg!(comic);
     Ok(())
 }
 
+type Str = Box<str>;
+type Arr<T> = Box<[T]>;
+
 #[derive(Debug)]
 pub struct Page {
-    pub image_url: Box<str>,
-    pub thumbnail_url: Option<Box<str>>,
+    pub image_url: Str,
+    pub thumbnail_url: Option<Str>,
 }
 #[derive(Debug)]
 pub struct Chapter {
-    pub name: Option<Box<str>>,
-    pub pages: Box<[Page]>,
+    pub name: Option<Str>,
+    pub pages: Arr<Page>,
 }
 #[derive(Debug, Default)]
 pub struct Comic {
-    //pub url: Box<str>,
-    pub title: Box<str>,
-    pub cover_url: Box<str>,
-    pub language: Box<str>,
-    pub chapters: Box<[Chapter]>,
-    pub description: Option<Box<str>>,
-    pub tags: Option<Box<[Box<str>]>>,
-    pub authors: Option<Box<[Box<str>]>>,
-    pub artists: Option<Box<[Box<str>]>>,
-    pub groups: Option<Box<[Box<str>]>>,
-    pub parodies: Option<Box<[Box<str>]>>,
-    pub characters: Option<Box<[Box<str>]>>,
+    //pub url: Str,
+    pub title: Str,
+    pub cover_url: Str,
+    pub language: Str,
+    pub chapters: Arr<Chapter>,
+    pub description: Option<Str>,
+    pub tags: Option<Arr<Str>>,
+    pub authors: Option<Arr<Str>>,
+    pub artists: Option<Arr<Str>>,
+    pub groups: Option<Arr<Str>>,
+    pub parodies: Option<Arr<Str>>,
+    pub characters: Option<Arr<Str>>,
 }
 
 trait ComicSource {
