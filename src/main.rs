@@ -1,4 +1,5 @@
 use clap::Parser;
+use scraper::ElementRef;
 use scraper::Html;
 use scraper::Selector;
 use std::iter::zip;
@@ -111,6 +112,15 @@ impl ComicSource for TestSource {
 
         let selector = Selector::parse("#tags div.tag-container").unwrap();
         let selector2 = Selector::parse("a.tag span.name").unwrap();
+        let f = |e: ElementRef| {
+            Some(
+                e.select(&selector2)
+                    .map(|e| e.inner_html().into_boxed_str())
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice(),
+            )
+        };
+
         let language = html
             .select(&selector)
             .find(|e| e.inner_html().contains("Languages"))
@@ -124,54 +134,34 @@ impl ComicSource for TestSource {
         let tags = html
             .select(&selector)
             .find(|e| e.inner_html().contains("Tags"))
-            .unwrap()
-            .select(&selector2)
-            .map(|e| e.inner_html().into_boxed_str())
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+            .and_then(f);
 
         let artists = html
             .select(&selector)
             .find(|e| e.inner_html().contains("Artists"))
-            .unwrap()
-            .select(&selector2)
-            .map(|e| e.inner_html().into_boxed_str())
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+            .and_then(f);
 
         let groups = html
             .select(&selector)
             .find(|e| e.inner_html().contains("Groups"))
-            .unwrap()
-            .select(&selector2)
-            .map(|e| e.inner_html().into_boxed_str())
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+            .and_then(f);
 
         let parodies = html
             .select(&selector)
             .find(|e| e.inner_html().contains("Parodies"))
-            .unwrap()
-            .select(&selector2)
-            .map(|e| e.inner_html().into_boxed_str())
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+            .and_then(f);
 
         let characters = html
             .select(&selector)
             .find(|e| e.inner_html().contains("Characters"))
-            .unwrap()
-            .select(&selector2)
-            .map(|e| e.inner_html().into_boxed_str())
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+            .and_then(f);
 
         Ok(Comic {
             title,
             cover_url,
             language,
             chapters,
-            tags: Some(tags),
+            tags: tags,
             artists: Some(artists),
             groups: Some(groups),
             parodies: Some(parodies),
