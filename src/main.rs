@@ -19,27 +19,14 @@ async fn main() -> Result<()> {
 
     //let h = reqwest::get(cli.url).await?.text().await?;
     //std::fs::write("tmp/tmp.html", &html)?;
-
-    let comic = TestSource::comic(&cli.url)?;
-    dbg!(comic);
+    let _comic = TestSource::comic(&cli.url)?;
+    dbg!(_comic);
 
     Ok(())
 }
 
 type Str = Box<str>;
 type Arr<T> = Box<[T]>;
-
-#[derive(Debug)]
-pub struct Page {
-    pub image_url: Str,
-    pub thumbnail_url: Option<Str>,
-}
-
-#[derive(Debug)]
-pub struct Chapter {
-    pub name: Option<Str>,
-    pub pages: Arr<Page>,
-}
 
 #[derive(Debug)]
 pub enum Status {
@@ -55,20 +42,27 @@ pub enum Lang<T> {
     Chinese(T),
 }
 
+#[derive(Debug)]
+pub struct Chapter {
+    pub image_urls: Arr<Str>,
+    pub image_thumbnail_urls: Option<Arr<Str>>,
+    pub name: Option<Str>,
+}
+
 #[derive(Debug, Default)]
 pub struct Comic {
     //pub url: Str,
-    pub titles: Arr<Lang<Str>>,
     pub cover_url: Str,
-    pub languages: Arr<Str>,
     pub chapters: Arr<Chapter>,
-    pub status: Option<Status>,
-    pub description: Option<Str>,
+    pub names: Arr<Lang<Str>>,
+    pub languages: Arr<Str>,
     pub tags: Option<Arr<Str>>,
     pub authors: Option<Arr<Str>>,
     pub groups: Option<Arr<Str>>,
     pub parodies: Option<Arr<Str>>,
     pub characters: Option<Arr<Str>>,
+    pub status: Option<Status>,
+    pub description: Option<Str>,
 }
 
 trait ComicSource {
@@ -78,123 +72,155 @@ trait ComicSource {
 struct TestSource {}
 impl ComicSource for TestSource {
     fn comic(url: &str) -> Result<Comic> {
-        let h = std::fs::read_to_string("./tmp/page.html")?;
-        let h = Html::parse_document(&h);
-        let s = Selector::parse("script").unwrap();
-        let pages = (|| {
-            let v = h
-                .select(&s)
-                .nth(3)?
-                .inner_html()
-                .lines()
-                .nth(4)?
-                .trim_start()
-                .strip_prefix("var images_ext = [\"")?
-                .strip_suffix("\"];")?
-                .split("\",\"")
-                .map(|s| s.to_owned().into_boxed_str())
-                .collect::<Vec<_>>()
-                .into_boxed_slice();
-            Some(v)
-        })()
-        .unwrap();
-        dbg!(pages);
+        let err = "err";
+        let html = std::fs::read_to_string("./tmp/page.html")?;
+        let html = Html::parse_document(&html);
 
-        let pages = Box::from([]);
-        let chapters = Box::new([Chapter { name: None, pages }]);
+        let chapters = {
+            let s = Selector::parse("#image-container img").unwrap();
+            let cdn = (|| {
+                let v = html.select(&s).next()?.value().attr("src")?;
+                let v = v
+                    .strip_suffix("/1.jpg")
+                    .or_else(|| v.strip_prefix("/1.png"))?;
+                Some(v)
+            })()
+            .ok_or(err)?;
 
-        let h = std::fs::read_to_string(url)?;
-        let h = Html::parse_document(&h);
-        let s = Selector::parse("#cover img").unwrap();
-        let cover_url = (|| {
-            let v = h
-                .select(&s)
-                .next()?
-                .value()
-                .attr("data-src")?
-                .to_owned()
-                .into_boxed_str();
-            Some(v)
-        })()
-        .unwrap();
+            // extract the extension of images from <script>...</script>
+            // then generate the urls based on them
+            let s = Selector::parse("script").unwrap();
+            let (image_urls, image_thumbnail_urls) = (|| {
+                let v: (Vec<_>, Vec<_>) = html
+                    .select(&s)
+                    .nth(3)?
+                    .inner_html()
+                    .lines()
+                    .nth(4)?
+                    .trim_start()
+                    .strip_prefix("var images_ext = [\"")?
+                    .strip_suffix("\"];")?
+                    .split("\",\"")
+                    .enumerate()
+                    .map(|(i, s)| {
+                        let ext = match s {
+                            "j" => Some("jpg"),
+                            "p" => Some("png"),
+                            _ => None,
+                        }?;
+                        let i = i + 1;
+                        Some((
+                            format!("{cdn}/{i}.{ext}").into_boxed_str(),
+                            format!("{cdn}/{i}t.{ext}").into_boxed_str(),
+                        ))
+                    })
+                    .collect::<Option<Vec<_>>>()?
+                    .into_iter()
+                    .unzip();
+                let v = (v.0.into_boxed_slice(), Some(v.1.into_boxed_slice()));
+                Some(v)
+            })()
+            .ok_or(err)?;
 
-        let s = Selector::parse("#info").unwrap();
-        let h = h.select(&s).next().unwrap().inner_html();
-        let h = Html::parse_fragment(&h);
-
-        let f = |h: &Html, s: &Selector| {
-            let v = h
-                .select(&s)
-                .next()?
-                .inner_html()
-                // extract the first text between bracket or parenthese blocks.
-                // for example:
-                //     [_] (_) text (_) -> text
-                //     text [_]         -> text
-                //     [_(_)] text      -> text
-                //     text1 (_) text2  -> text1
-                .split(&[']', ')'][..])
-                .filter(|s| !s.trim_start().starts_with(&['[', '('][..]))
-                .collect::<String>()
-                .split(&['[', '('][..])
-                .next()?
-                .trim()
-                .to_owned()
-                .into_boxed_str();
-            Some(v)
+            Box::new([Chapter {
+                image_urls,
+                image_thumbnail_urls,
+                name: None,
+            }])
         };
-        let s = Selector::parse("h1.title span.pretty").unwrap();
-        let en = f(&h, &s).unwrap();
-        let s = Selector::parse("h2.title span.before").unwrap();
-        let ja = f(&h, &s).unwrap();
-        let titles = Box::from([Lang::English(en), Lang::Japanese(ja)]);
 
-        let s = Selector::parse("a.tag span.name").unwrap();
-        let f = |e: ElementRef| {
-            let v = e
-                .select(&s)
-                .map(|e| e.inner_html().into_boxed_str())
-                .collect::<Vec<_>>()
-                .into_boxed_slice();
-            Some(v)
+        let html = std::fs::read_to_string(url)?;
+        let html = Html::parse_document(&html);
+
+        let cover_url = {
+            let s = Selector::parse("#cover img").unwrap();
+            (|| {
+                let v = html
+                    .select(&s)
+                    .next()?
+                    .value()
+                    .attr("data-src")?
+                    .to_owned()
+                    .into_boxed_str();
+                Some(v)
+            })()
+            .ok_or(err)?
         };
-        let s = Selector::parse("#tags div.tag-container").unwrap();
-        let languages = h
-            .select(&s)
-            .find(|e| e.inner_html().contains("Languages"))
-            .and_then(f)
-            .unwrap_or(Box::from([]));
-        let tags = h
-            .select(&s)
-            .find(|e| e.inner_html().contains("Tags"))
-            .and_then(f)
-            .or(Some(Box::from([])));
-        let authors = h
-            .select(&s)
-            .find(|e| e.inner_html().contains("Artists"))
-            .and_then(f)
-            .or(Some(Box::from([])));
-        let groups = h
-            .select(&s)
-            .find(|e| e.inner_html().contains("Groups"))
-            .and_then(f)
-            .or(Some(Box::from([])));
-        let parodies = h
-            .select(&s)
-            .find(|e| e.inner_html().contains("Parodies"))
-            .and_then(f)
-            .or(Some(Box::from([])));
-        let characters = h
-            .select(&s)
-            .find(|e| e.inner_html().contains("Characters"))
-            .and_then(f)
-            .or(Some(Box::from([])));
+
+        let names = {
+            let s1 = Selector::parse("#info h1.title span.pretty").unwrap();
+            let s2 = Selector::parse("#info h2.title span.before").unwrap();
+            let f = |s: &Selector| {
+                let v = html
+                    .select(s)
+                    .next()?
+                    .inner_html()
+                    // extract the first text between bracket or parenthese blocks.
+                    // for example:
+                    //     [_] (_) text (_) -> text
+                    //     text [_]         -> text
+                    //     [_(_)] text      -> text
+                    //     text1 (_) text2  -> text1
+                    .split(&[']', ')'][..])
+                    .filter(|s| !s.trim_start().starts_with(&['[', '('][..]))
+                    .collect::<String>()
+                    .split(&['[', '('][..])
+                    .next()?
+                    .trim()
+                    .to_owned()
+                    .into_boxed_str();
+                Some(v)
+            };
+            let en = f(&s1).ok_or(err)?;
+            let ja = f(&s2).ok_or(err)?;
+
+            Box::from([Lang::English(en), Lang::Japanese(ja)])
+        };
+
+        let (languages, tags, authors, groups, parodies, characters) = {
+            let s1 = Selector::parse("#info div.tag-container").unwrap();
+            let s2 = Selector::parse("a.tag span.name").unwrap();
+            let f = |e: ElementRef| {
+                let v = e
+                    .select(&s2)
+                    .map(|e| e.inner_html().into_boxed_str())
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice();
+                Some(v)
+            };
+            (
+                html.select(&s1)
+                    .find(|e| e.inner_html().contains("Languages"))
+                    .and_then(f)
+                    .unwrap_or_else(|| Box::from([])),
+                html.select(&s1)
+                    .find(|e| e.inner_html().contains("Tags"))
+                    .and_then(f)
+                    .or_else(|| Some(Box::from([]))),
+                html.select(&s1)
+                    .find(|e| e.inner_html().contains("Artists"))
+                    .and_then(f)
+                    .or_else(|| Some(Box::from([]))),
+                html.select(&s1)
+                    .find(|e| e.inner_html().contains("Groups"))
+                    .and_then(f)
+                    .or_else(|| Some(Box::from([]))),
+                html.select(&s1)
+                    .find(|e| e.inner_html().contains("Parodies"))
+                    .and_then(f)
+                    .or_else(|| Some(Box::from([]))),
+                html.select(&s1)
+                    .find(|e| e.inner_html().contains("Characters"))
+                    .and_then(f)
+                    .or_else(|| Some(Box::from([]))),
+            )
+        };
 
         Ok(Comic {
-            titles,
             cover_url,
-            languages,
             chapters,
+            names,
+            languages,
             tags,
             authors,
             groups,
