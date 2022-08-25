@@ -1,4 +1,6 @@
-// TODO: Replace unwraps with proper errors .ok_or(err)?
+// TODO: handle scraper errors
+// TODO: filter parameters
+// TODO: lazy evaluation
 use clap::Parser;
 use scraper::ElementRef;
 use scraper::Html;
@@ -30,8 +32,21 @@ type Arr<T> = Box<[T]>;
 
 #[derive(Debug)]
 pub enum Status {
-    Completed,
+    Canceled,
+    Complete,
+    Discontinued,
+    Hiatus,
     Ongoing,
+}
+
+#[derive(Debug)]
+pub enum Type {
+    Doujinshi,
+    Manga,
+    Manhua,
+    Manhwa,
+    Oel,
+    OneShot,
 }
 
 #[derive(Debug)]
@@ -44,25 +59,28 @@ pub enum Lang<T> {
 
 #[derive(Debug)]
 pub struct Chapter {
-    pub image_urls: Arr<Str>,
-    pub image_thumbnail_urls: Option<Arr<Str>>,
-    pub name: Option<Str>,
+    pub url: Str,
+    pub name: Str,
+    //pub image_urls: Arr<Str>,
+    //pub image_thumbnail_urls: Option<Arr<Str>>,
 }
 
 #[derive(Debug, Default)]
 pub struct Comic {
-    //pub url: Str,
+    pub url: Str,
     pub cover_url: Str,
     pub chapters: Arr<Chapter>,
     pub names: Arr<Lang<Str>>,
-    pub languages: Arr<Str>,
+    pub description: Option<Str>,
+    pub r#type: Option<Type>,
+    pub publish_status: Option<Status>,
+    pub scan_status: Option<Status>,
+    pub languages: Option<Arr<Str>>,
     pub tags: Option<Arr<Str>>,
     pub authors: Option<Arr<Str>>,
     pub groups: Option<Arr<Str>>,
     pub parodies: Option<Arr<Str>>,
     pub characters: Option<Arr<Str>>,
-    pub status: Option<Status>,
-    pub description: Option<Str>,
 }
 
 trait ComicSource {
@@ -73,63 +91,7 @@ struct TestSource {}
 impl ComicSource for TestSource {
     fn comic(url: &str) -> Result<Comic> {
         let err = "err";
-        let html = std::fs::read_to_string("./tmp/page.html")?;
-        let html = Html::parse_document(&html);
-
-        let chapters = {
-            let s = Selector::parse("#image-container img").unwrap();
-            let cdn = (|| {
-                let v = html.select(&s).next()?.value().attr("src")?;
-                let v = v
-                    .strip_suffix("/1.jpg")
-                    .or_else(|| v.strip_prefix("/1.png"))?;
-                Some(v)
-            })()
-            .ok_or(err)?;
-
-            // extract the extension of images from <script>...</script>
-            // then generate the urls based on them
-            let s = Selector::parse("script").unwrap();
-            let (image_urls, image_thumbnail_urls) = (|| {
-                let v: (Vec<_>, Vec<_>) = html
-                    .select(&s)
-                    .nth(3)?
-                    .inner_html()
-                    .lines()
-                    .nth(4)?
-                    .trim_start()
-                    .strip_prefix("var images_ext = [\"")?
-                    .strip_suffix("\"];")?
-                    .split("\",\"")
-                    .enumerate()
-                    .map(|(i, s)| {
-                        let ext = match s {
-                            "j" => Some("jpg"),
-                            "p" => Some("png"),
-                            _ => None,
-                        }?;
-                        let i = i + 1;
-                        Some((
-                            format!("{cdn}/{i}.{ext}").into_boxed_str(),
-                            format!("{cdn}/{i}t.{ext}").into_boxed_str(),
-                        ))
-                    })
-                    .collect::<Option<Vec<_>>>()?
-                    .into_iter()
-                    .unzip();
-                let v = (v.0.into_boxed_slice(), Some(v.1.into_boxed_slice()));
-                Some(v)
-            })()
-            .ok_or(err)?;
-
-            Box::new([Chapter {
-                image_urls,
-                image_thumbnail_urls,
-                name: None,
-            }])
-        };
-
-        let html = std::fs::read_to_string(url)?;
+        let html = std::fs::read_to_string(&url)?;
         let html = Html::parse_document(&html);
 
         let cover_url = {
@@ -145,6 +107,12 @@ impl ComicSource for TestSource {
                 Some(v)
             })()
             .ok_or(err)?
+        };
+
+        let chapters = {
+            let url = format!("{url}/1").into_boxed_str();
+            let name = "1".to_owned().into_boxed_str();
+            Box::from([Chapter { url, name }])
         };
 
         let names = {
@@ -192,7 +160,7 @@ impl ComicSource for TestSource {
                 html.select(&s1)
                     .find(|e| e.inner_html().contains("Languages"))
                     .and_then(f)
-                    .unwrap_or_else(|| Box::from([])),
+                    .or_else(|| Some(Box::from([]))),
                 html.select(&s1)
                     .find(|e| e.inner_html().contains("Tags"))
                     .and_then(f)
@@ -216,7 +184,10 @@ impl ComicSource for TestSource {
             )
         };
 
+        let url = url.to_owned().into_boxed_str();
+
         Ok(Comic {
+            url,
             cover_url,
             chapters,
             names,
@@ -230,3 +201,50 @@ impl ComicSource for TestSource {
         })
     }
 }
+
+//let html = std::fs::read_to_string("./tmp/page.html")?;
+//let html = Html::parse_document(&html);
+//
+//let s = Selector::parse("#image-container img").unwrap();
+//let cdn = (|| {
+//    let v = html.select(&s).next()?.value().attr("src")?;
+//    let v = v
+//        .strip_suffix("/1.jpg")
+//        .or_else(|| v.strip_prefix("/1.png"))?;
+//    Some(v)
+//})()
+//.ok_or(err)?;
+//
+//// extract the extension of images from <script>...</script>
+//// then generate the urls based on them
+//let s = Selector::parse("script").unwrap();
+//let (image_urls, image_thumbnail_urls) = (|| {
+//    let v: (Vec<_>, Vec<_>) = html
+//        .select(&s)
+//        .nth(3)?
+//        .inner_html()
+//        .lines()
+//        .nth(4)?
+//        .trim_start()
+//        .strip_prefix("var images_ext = [\"")?
+//        .strip_suffix("\"];")?
+//        .split("\",\"")
+//        .enumerate()
+//        .map(|(i, s)| {
+//            let ext = match s {
+//                "j" => Some("jpg"),
+//                "p" => Some("png"),
+//                _ => None,
+//            }?;
+//            let i = i + 1;
+//            Some((
+//                format!("{cdn}/{i}.{ext}").into_boxed_str(),
+//                format!("{cdn}/{i}t.{ext}").into_boxed_str(),
+//            ))
+//        })
+//        .collect::<Option<Vec<_>>>()?
+//        .into_iter()
+//        .unzip();
+//    Some((v.0.into_boxed_slice(), Some(v.1.into_boxed_slice())))
+//})()
+//.ok_or(err)?;
