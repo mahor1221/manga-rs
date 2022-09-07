@@ -1,5 +1,4 @@
 // TODO: enums for genres, authors, ...
-// TODO: names Lang
 // TODO: how to handle url paths
 
 type Str = Box<str>;
@@ -20,29 +19,32 @@ pub mod comic {
         pub languages: Arr<Lang>,
     }
 
+    //pub struct Anime {}
     #[derive(Debug, Default)]
     pub struct Comic {
         pub id: usize,
         pub source_id: usize,
-        pub name: Str,
-        pub cover_thumbnail_url: Str,
         pub names: Arr<Str>,
         pub cover_url: Str,
-
         pub chapters: Arr<Chapter>,
-
         pub description: Option<Str>,
 
+        // filters
         pub r#type: Option<Type>,
         pub publish_status: Option<Status>,
         pub scan_status: Option<Status>,
         pub languages: Option<Arr<Str>>,
-
         pub genres: Option<Arr<Str>>,
         pub authors: Option<Arr<Str>>,
         pub groups: Option<Arr<Str>>,
         pub parodies: Option<Arr<Str>>,
         pub characters: Option<Arr<Str>>,
+    }
+
+    pub struct IndexItem {
+        pub comic_id: usize,
+        pub name: Str,
+        pub cover_thumbnail_url: Str,
     }
 
     #[derive(Debug, Default)]

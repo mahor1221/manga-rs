@@ -1,6 +1,4 @@
 // TODO: handle scraper errors
-// TODO: filter parameters
-// TODO: lazy evaluation
 
 use clap::Parser;
 use scraper::ElementRef;
@@ -24,8 +22,8 @@ async fn main() -> Result<()> {
 
     //let h = reqwest::get(cli.url).await?.text().await?;
     //std::fs::write("tmp/tmp.html", &html)?;
-    let _comic = TestSource::comic(&cli.url)?;
-    dbg!(_comic);
+    let comic = TestSource::comic(&cli.url)?;
+    dbg!(comic);
 
     Ok(())
 }
@@ -42,8 +40,6 @@ impl ComicSource for TestSource {
         let html = std::fs::read_to_string(&url)?;
         let html = Html::parse_document(&html);
 
-        let cover_thumbnail_url = "".to_owned().into_boxed_str();
-        let name = "".to_owned().into_boxed_str();
         let cover_url = {
             let s = Selector::parse("#cover img").unwrap();
             (|| {
@@ -59,11 +55,9 @@ impl ComicSource for TestSource {
             .unwrap()
         };
 
-        let chapters = Box::new([Chapter::default()]);
+        let chapters = { Box::new([Chapter::default()]) };
 
         let names = {
-            let s1 = Selector::parse("#info h1.title span.pretty").unwrap();
-            let s2 = Selector::parse("#info h2.title span.before").unwrap();
             let f = |s: &Selector| {
                 let v = html
                     .select(s)
@@ -85,10 +79,11 @@ impl ComicSource for TestSource {
                     .into_boxed_str();
                 Some(v)
             };
+            let s1 = Selector::parse("#info h1.title span.pretty").unwrap();
+            let s2 = Selector::parse("#info h2.title span.before").unwrap();
             let en = f(&s1).unwrap();
             let ja = f(&s2).unwrap();
-            //Box::from([Lang::English(en), Lang::Japanese(ja)])
-            Box::from([en, ja])
+            Box::new([en, ja])
         };
 
         let (languages, genres, authors, groups, parodies, characters) = {
@@ -106,34 +101,32 @@ impl ComicSource for TestSource {
                 html.select(&s1)
                     .find(|e| e.inner_html().contains("Languages"))
                     .and_then(f)
-                    .or_else(|| Some(Box::from([]))),
+                    .or_else(|| Some(Box::new([]))),
                 html.select(&s1)
                     .find(|e| e.inner_html().contains("Tags"))
                     .and_then(f)
-                    .or_else(|| Some(Box::from([]))),
+                    .or_else(|| Some(Box::new([]))),
                 html.select(&s1)
                     .find(|e| e.inner_html().contains("Artists"))
                     .and_then(f)
-                    .or_else(|| Some(Box::from([]))),
+                    .or_else(|| Some(Box::new([]))),
                 html.select(&s1)
                     .find(|e| e.inner_html().contains("Groups"))
                     .and_then(f)
-                    .or_else(|| Some(Box::from([]))),
+                    .or_else(|| Some(Box::new([]))),
                 html.select(&s1)
                     .find(|e| e.inner_html().contains("Parodies"))
                     .and_then(f)
-                    .or_else(|| Some(Box::from([]))),
+                    .or_else(|| Some(Box::new([]))),
                 html.select(&s1)
                     .find(|e| e.inner_html().contains("Characters"))
                     .and_then(f)
-                    .or_else(|| Some(Box::from([]))),
+                    .or_else(|| Some(Box::new([]))),
             )
         };
 
         Ok(Comic {
             source_id: 0,
-            name,
-            cover_thumbnail_url,
             names,
             cover_url,
             chapters,

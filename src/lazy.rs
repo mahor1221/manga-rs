@@ -1,5 +1,9 @@
 // Allow closures to capture variables
 //https://github.com/matklad/once_cell/issues/156
+
+// This is an anti-pattern but There isn't any other way
+// https://rust-unofficial.github.io/patterns/anti_patterns/deref.html
+
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
