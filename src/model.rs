@@ -19,18 +19,28 @@ pub mod comic {
         pub languages: Arr<Lang>,
     }
 
+    pub type Index = Arr<Item>;
+    #[derive(Debug)]
+    pub struct Item {
+        //pub id: usize,
+        //pub source_id: usize,
+        //pub is_anime: bool,
+        pub name: Str,
+        pub path_url: Str,
+        pub cover_thumbnail_url: Str,
+    }
+
     //pub struct Anime {}
     #[derive(Debug, Default)]
     pub struct Comic {
-        pub id: usize,
-        pub source_id: usize,
-        pub names: Arr<Str>,
+        pub item_id: usize,
         pub cover_url: Str,
         pub chapters: Arr<Chapter>,
-        pub description: Option<Str>,
 
+        pub description: Option<Str>,
+        pub other_names: Option<Arr<Str>>,
         // filters
-        pub r#type: Option<Type>,
+        pub r#type: Option<ComicType>,
         pub publish_status: Option<Status>,
         pub scan_status: Option<Status>,
         pub languages: Option<Arr<Str>>,
@@ -39,12 +49,6 @@ pub mod comic {
         pub groups: Option<Arr<Str>>,
         pub parodies: Option<Arr<Str>>,
         pub characters: Option<Arr<Str>>,
-    }
-
-    pub struct IndexItem {
-        pub comic_id: usize,
-        pub name: Str,
-        pub cover_thumbnail_url: Str,
     }
 
     #[derive(Debug, Default)]
@@ -57,7 +61,7 @@ pub mod comic {
     }
 
     #[derive(Debug)]
-    pub enum Type {
+    pub enum ComicType {
         Doujinshi,
         Manga,
         Manhua,
