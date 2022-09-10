@@ -2,15 +2,14 @@
 // TODO: tokio single vs multi thread
 
 #![forbid(unsafe_code)]
-
+mod error;
+mod model;
 use clap::Parser;
+use error::Result;
+use model::comic::*;
 use scraper::ElementRef;
 use scraper::Html;
 use scraper::Selector;
-mod error;
-use error::Result;
-mod model;
-use model::comic::*;
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -26,7 +25,6 @@ async fn main() -> Result<()> {
     //let h = reqwest::get(cli.url).await?.text().await?;
     //std::fs::write("tmp/tmp.html", &h)?;
     dbg!(TestSource::index(&cli.url)?);
-
     Ok(())
 }
 
@@ -46,41 +44,42 @@ impl TestSource {
         let html = std::fs::read_to_string(&url)?;
         let html = Html::parse_document(&html);
 
-        let items = Selector::parse("div.gallery").unwrap();
-        let name = Selector::parse("a.cover div.caption").unwrap();
-        let path_url = Selector::parse("a").unwrap();
-        let cover_thumbnail_url = Selector::parse("a.cover img").unwrap();
+        let index = {
+            let items = Selector::parse("div.gallery").unwrap();
+            let name = Selector::parse("a.cover div.caption").unwrap();
+            let path_url = Selector::parse("a").unwrap();
+            let cover_thumbnail_url = Selector::parse("a.cover img").unwrap();
 
-        let index = html
-            .select(&items)
-            .map(|e| {
-                let name =
-                    e.select(&name).next()?.inner_html().into_boxed_str();
+            html.select(&items)
+                .map(|e| {
+                    let name =
+                        e.select(&name).next()?.inner_html().into_boxed_str();
 
-                let path_url = e
-                    .select(&path_url)
-                    .next()?
-                    .value()
-                    .attr("href")?
-                    .to_owned()
-                    .into_boxed_str();
+                    let path_url = e
+                        .select(&path_url)
+                        .next()?
+                        .value()
+                        .attr("href")?
+                        .to_owned()
+                        .into_boxed_str();
 
-                let cover_thumbnail_url = e
-                    .select(&cover_thumbnail_url)
-                    .next()?
-                    .value()
-                    .attr("data-src")?
-                    .to_owned()
-                    .into_boxed_str();
+                    let cover_thumbnail_url = e
+                        .select(&cover_thumbnail_url)
+                        .next()?
+                        .value()
+                        .attr("data-src")?
+                        .to_owned()
+                        .into_boxed_str();
 
-                Some(Item {
-                    name,
-                    path_url,
-                    cover_thumbnail_url,
+                    Some(Item {
+                        name,
+                        path_url,
+                        cover_thumbnail_url,
+                    })
                 })
-            })
-            .collect::<Option<Index>>()
-            .unwrap();
+                .collect::<Option<Index>>()
+                .unwrap()
+        };
 
         Ok(index)
     }
@@ -100,6 +99,7 @@ impl TestSource {
             .map(|s| s.trim().to_owned())
     }
 }
+
 impl HasComic for TestSource {
     fn comic(url: &str) -> Result<Comic> {
         let html = std::fs::read_to_string(&url)?;
