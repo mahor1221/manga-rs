@@ -1,11 +1,14 @@
 // TODO: handle scraper errors
 // TODO: tokio single vs multi thread
+// TODO: get cover_thumbnail_url from manga page
+// TODO: HasComic need trait bound?
+// TODO: source semver
 
 #![forbid(unsafe_code)]
 mod error;
 mod model;
 use clap::Parser;
-use error::Result;
+use error::{Error, Result};
 use model::comic::*;
 use scraper::ElementRef;
 use scraper::Html;
@@ -24,26 +27,39 @@ async fn main() -> Result<()> {
 
     //let h = reqwest::get(cli.url).await?.text().await?;
     //std::fs::write("tmp/tmp.html", &h)?;
-    dbg!(TestSource::index(&cli.url)?);
+    dbg!(latest(&cli.url, 0)?);
     Ok(())
 }
 
+fn latest(source_url: &str, page: usize) -> Result<Index> {
+    match source_url {
+        "./tmp/latest.html" => TestSource::latest(page),
+        _ => Err(Error::LatestNotSupported),
+    }
+}
+fn popular(source_url: &str, page: usize) -> Result<Index> {
+    match source_url {
+        "./tmp/latest.html" => TestSource::popular(page),
+        _ => Err(Error::PopularNotSupported),
+    }
+}
+
+pub trait IsSource {
+    fn source() -> Source;
+}
 pub trait HasComic {
-    fn comic(url: &str) -> Result<Comic>;
+    fn comic(html: &Html) -> Result<Comic>;
 }
 pub trait HasLatestIndex {
-    fn latest(url: &str) -> Result<Index>;
+    fn latest(page: usize) -> Result<Index>;
 }
 pub trait HasPopularIndex {
-    fn popular(url: &str) -> Result<Index>;
+    fn popular(page: usize) -> Result<Index>;
 }
 
-struct TestSource {}
+pub struct TestSource;
 impl TestSource {
-    fn index(url: &str) -> Result<Index> {
-        let html = std::fs::read_to_string(&url)?;
-        let html = Html::parse_document(&html);
-
+    fn index(html: &Html) -> Result<Index> {
         let index = {
             let items = Selector::parse("div.gallery").unwrap();
             let name = Selector::parse("a.cover div.caption").unwrap();
@@ -52,16 +68,18 @@ impl TestSource {
 
             html.select(&items)
                 .map(|e| {
-                    let name =
-                        e.select(&name).next()?.inner_html().into_boxed_str();
+                    let source_url = Box::from(Self::source().url);
 
-                    let path_url = e
+                    let path = e
                         .select(&path_url)
                         .next()?
                         .value()
                         .attr("href")?
                         .to_owned()
                         .into_boxed_str();
+
+                    let name =
+                        e.select(&name).next()?.inner_html().into_boxed_str();
 
                     let cover_thumbnail_url = e
                         .select(&cover_thumbnail_url)
@@ -71,10 +89,14 @@ impl TestSource {
                         .to_owned()
                         .into_boxed_str();
 
+                    let r#type = ItemType::Manga;
                     Some(Item {
+                        id: 0,
+                        source_url,
+                        path,
                         name,
-                        path_url,
                         cover_thumbnail_url,
+                        r#type,
                     })
                 })
                 .collect::<Option<Index>>()
@@ -100,11 +122,21 @@ impl TestSource {
     }
 }
 
+impl IsSource for TestSource {
+    fn source() -> Source {
+        Source {
+            url: "",
+            name: "",
+            icon: "",
+            version: "0.1.0",
+            languages: &[Lang::English],
+            is_nsfw: true,
+            is_pirate: true,
+        }
+    }
+}
 impl HasComic for TestSource {
-    fn comic(url: &str) -> Result<Comic> {
-        let html = std::fs::read_to_string(&url)?;
-        let html = Html::parse_document(&html);
-
+    fn comic(html: &Html) -> Result<Comic> {
         let cover_url = {
             let s = Selector::parse("#cover img").unwrap();
             (|| {
@@ -117,7 +149,7 @@ impl HasComic for TestSource {
                     .into_boxed_str();
                 Some(v)
             })()
-            .unwrap()
+            .ok_or(Error::ElementNotFound)?
         };
 
         let chapters = { Box::new([Chapter::default()]) };
@@ -126,10 +158,10 @@ impl HasComic for TestSource {
             let select = |s: &Selector| {
                 Some(html.select(s).next()?.inner_html().into_boxed_str())
             };
-            let en = Selector::parse("#info h1.title span.pretty").unwrap();
-            let ja = Selector::parse("#info h2.title span.before").unwrap();
-            let en = select(&en).unwrap();
-            let ja = select(&ja).unwrap();
+            let en = Selector::parse("#info h1.title span.pretty")?;
+            let ja = Selector::parse("#info h2.title span.before")?;
+            let en = select(&en).ok_or(Error::ElementNotFound)?;
+            let ja = select(&ja).ok_or(Error::ElementNotFound)?;
             Some(Box::from([en, ja]))
         };
 
@@ -183,10 +215,17 @@ impl HasComic for TestSource {
         })
     }
 }
-//impl Popular for TestSource {
-//    fn popular(url: &str) -> Result<Index> {
-//        let html = std::fs::read_to_string(&url)?;
-//        let html = Html::parse_document(&html);
-//
-//    }
-//}
+impl HasLatestIndex for TestSource {
+    fn latest(page: usize) -> Result<Index> {
+        let html = std::fs::read_to_string("./tmp/latest.html")?;
+        let html = Html::parse_document(&html);
+        Self::index(&html)
+    }
+}
+impl HasPopularIndex for TestSource {
+    fn popular(page: usize) -> Result<Index> {
+        let html = std::fs::read_to_string("./tmp/popular.html")?;
+        let html = Html::parse_document(&html);
+        Self::index(&html)
+    }
+}

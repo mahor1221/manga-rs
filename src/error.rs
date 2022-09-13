@@ -1,33 +1,41 @@
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
-// if I forward scrapper erros using commented section of this mod the
-// compiler will complain on running functions with `html: &Html` variable:
-// cannot return value referencing local variable `html`
+//use std::error::Error;
+//pub type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
 
-//use selectors::parser::SelectorParseErrorKind;
-//type ScraperError<'a> = cssparser::ParseError<'a, SelectorParseErrorKind<'a>>;
-//pub type Result<'a, T> = std::result::Result<T, Error<'a>>;
+pub type Result<T> = std::result::Result<T, Error>;
 
-//#[derive(Debug)]
-//pub enum Error<'a> {
-//    StdError(Box<dyn std::error::Error>),
-//    IoError(std::io::Error),
-//    ParseError(ScraperError<'a>),
-//}
-//
-//impl<'a> From<Box<dyn std::error::Error>> for Error<'_> {
-//    fn from(err: Box<dyn std::error::Error>) -> Self {
-//        Error::StdError(err)
-//    }
-//}
-//
-//impl<'a> From<std::io::Error> for Error<'_> {
-//    fn from(err: std::io::Error) -> Self {
-//        Error::IoError(err)
-//    }
-//}
-//
-//impl<'a> From<ScraperError<'a>> for Error<'a> {
-//    fn from(err: ScraperError<'a>) -> Self {
-//        Error::ParseError(err)
-//    }
-//}
+use thiserror::Error;
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("")]
+    Io(std::io::Error),
+    #[error("")]
+    Reqwest(reqwest::Error),
+    #[error("")]
+    ScraperSelectorParse,
+    #[error("")]
+    ElementNotFound,
+    #[error("")]
+    LatestNotSupported,
+    #[error("")]
+    PopularNotSupported,
+}
+
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+        Error::Io(e)
+    }
+}
+impl From<reqwest::Error> for Error {
+    fn from(e: reqwest::Error) -> Self {
+        Error::Reqwest(e)
+    }
+}
+
+use selectors::parser::SelectorParseErrorKind;
+type SelectorParseError<'i> =
+    cssparser::ParseError<'i, SelectorParseErrorKind<'i>>;
+impl<'i> From<SelectorParseError<'i>> for Error {
+    fn from(e: SelectorParseError) -> Error {
+        Error::ScraperSelectorParse
+    }
+}
