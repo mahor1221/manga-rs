@@ -1,7 +1,3 @@
-// TODO: enums for genres, authors, ...
-// TODO: how to handle url paths
-// TODO: MAL, ... trackers?
-
 type Str = Box<str>;
 type Arr<T> = Box<[T]>;
 
@@ -10,10 +6,9 @@ pub mod comic {
 
     #[derive(Debug)]
     pub struct Source {
-        pub url: &'static str, //key
+        pub url: &'static str, //key ?
         pub name: &'static str,
         pub icon: &'static str,
-        pub version: &'static str,
         pub languages: &'static [Lang],
         pub is_nsfw: bool,
         pub is_pirate: bool,
@@ -22,25 +17,33 @@ pub mod comic {
     pub type Index = Arr<Item>;
     #[derive(Debug)]
     pub struct Item {
-        pub source_url: Str, // | foreign key
-        pub path: Str,       // | index
-        pub id: i64,
-        pub name: Str, //index
-        pub cover_thumbnail_url: Str,
+        pub url: Str,
+        pub name: Str,
+        pub cover_thumbnail: Str,
+        //pub source_icon: Str,
+        //pub source_name: Str,
         pub r#type: ItemType,
+    }
+
+    #[derive(Debug)]
+    pub enum ItemType {
+        Comic,
+        Anime,
+        Novel,
     }
 
     #[derive(Debug, Default)]
     pub struct Comic {
-        pub item_id: i64, //key and foreign key
-        pub cover_url: Str,
-        pub chapters: Arr<Chapter>,
-        pub characters_count: i64,
-        pub last_chapter_id: i64,
-        pub last_page_num: i64,
+        pub cover: Str, // don't save in database
 
+        pub source_id: i64,
+        pub id: i64,
+        pub url: Str,
+        pub names: Arr<Str>,
+        pub chapters: Arr<Chapter>,
+        pub last_chapter_num: i64,
+        pub last_page_num: i64,
         pub description: Option<Str>,
-        pub other_names: Option<Arr<Str>>,
 
         pub r#type: Option<ComicType>,
         pub publish_status: Option<Status>,
@@ -59,13 +62,6 @@ pub mod comic {
         pub id: i64,
         pub name: Str,
         pub pages_count: i64,
-    }
-
-    #[derive(Debug)]
-    pub enum ItemType {
-        Novel,
-        Manga,
-        Anime,
     }
 
     #[derive(Debug)]
