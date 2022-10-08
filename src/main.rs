@@ -4,8 +4,12 @@
 // TODO: HasComic need trait bound?
 // TODO: how to handle pagination
 // TODO: redownload missing files
-
+//
+// NEXT: Downloader
 #![forbid(unsafe_code)]
+// disable some lints for debug builds
+//#![cfg_attr(debug_assertions, allow(dead_code, unused, unused))]
+
 mod error;
 mod ext;
 mod model;
@@ -48,4 +52,11 @@ fn popular(source_url: &str) -> Result<Index> {
 
 //fn insert_index() {
 //
+//}
+
+//impl Item {
+//    pub fn cover_thumbnail(&self) -> Result<> {
+//            
+//
+//    }
 //}

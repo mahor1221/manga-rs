@@ -18,20 +18,14 @@ impl TestSource {
                 .map(|e| {
                     let source_id = Self::source().id;
 
-                    let path = e
-                        .select(&path)
-                        .next()?
-                        .value()
-                        .attr("href")?
-                        .strip_prefix('/')?
-                        .strip_suffix('/')?
-                        .to_owned()
-                        .into_boxed_str();
+                    let path = e.select(&path).next()?.value().attr("href")?;
+                    let source_url = Self::source().url;
+                    let url = format!("{source_url}{path}").into_boxed_str();
 
                     let name =
                         e.select(&name).next()?.inner_html().into_boxed_str();
 
-                    let cover_thumbnail = e
+                    let cover_thumbnail_url = e
                         .select(&cover_thumbnail_url)
                         .next()?
                         .value()
@@ -43,9 +37,9 @@ impl TestSource {
 
                     Some(raw::Item {
                         source_id,
-                        path,
+                        url,
                         name,
-                        cover_thumbnail,
+                        cover_thumbnail_url,
                         r#type,
                     })
                 })
@@ -73,8 +67,8 @@ impl TestSource {
 }
 
 impl IsSource for TestSource {
-    fn source() -> raw::Source {
-        raw::Source {
+    fn source() -> Source {
+        Source {
             id: SourceId::TestSource,
             url: "https://test.com",
             name: "test.com",
@@ -87,11 +81,13 @@ impl IsSource for TestSource {
 }
 impl HasComic for TestSource {
     fn comic(html: &Html) -> Result<raw::Comic> {
-        let cover = {
-            let s = Selector::parse("#cover img")?;
+        let source_id = Self::source().id as i64;
+
+        let cover_url = {
+            let url = Selector::parse("#cover img")?;
             (|| {
                 let v = html
-                    .select(&s)
+                    .select(&url)
                     .next()?
                     .value()
                     .attr("data-src")?
@@ -102,7 +98,7 @@ impl HasComic for TestSource {
             .ok_or(Error::ElementNotFound)?
         };
 
-        let chapters = { Box::new([raw::Chapter::default()]) };
+        let chapters = { Box::new([Chapter::default()]) };
 
         let names = {
             let select = |s: &Selector| {
@@ -152,16 +148,20 @@ impl HasComic for TestSource {
         };
 
         Ok(raw::Comic {
-            cover,
+            source_id,
+            cover_url,
             chapters,
             names,
-            languages,
-            genres,
-            authors,
-            groups,
-            parodies,
-            characters,
-            ..Default::default()
+            description: None,
+            filter: Filter {
+                languages,
+                genres,
+                authors,
+                groups,
+                parodies,
+                characters,
+                ..Default::default()
+            },
         })
     }
 }

@@ -3,7 +3,7 @@ use crate::model::*;
 use scraper::Html;
 
 pub trait IsSource {
-    fn source() -> raw::Source;
+    fn source() -> Source;
 }
 pub trait HasComic {
     fn comic(html: &Html) -> Result<raw::Comic>;

@@ -1,3 +1,14 @@
+#[derive(Debug)]
+pub struct Source {
+    pub id: SourceId,
+    pub url: &'static str, //key ?
+    pub name: &'static str,
+    pub icon: &'static str,
+    pub languages: &'static [Lang],
+    pub is_nsfw: bool,
+    pub is_pirate: bool,
+}
+
 type Str = Box<str>;
 type Arr<T> = Box<[T]>;
 
@@ -8,10 +19,43 @@ pub struct Item {
     pub source_name: Str,
     pub id: i64,
     pub url: Str,
+    cover_thumbnail_url: Str,
     pub name: Str,
     pub r#type: ItemType,
+}
 
-    pub cover_thumbnail: Str,
+#[derive(Debug)]
+pub struct Comic {
+    pub source_id: i64,
+    pub item_id: i64,
+    cover_url: Str,
+    pub names: Arr<Str>,
+    pub description: Option<Str>,
+    pub chapters: Arr<Chapter>,
+    pub last_chapter_num: i64,
+    pub last_page_num: i64,
+    pub filter: Filter,
+}
+
+#[derive(Debug, Default)]
+pub struct Filter {
+    pub r#type: Option<ComicType>,
+    pub publish_status: Option<Status>,
+    pub scan_status: Option<Status>,
+    pub languages: Option<Arr<Str>>,
+    pub genres: Option<Arr<Str>>,
+    pub authors: Option<Arr<Str>>,
+    pub groups: Option<Arr<Str>>,
+    pub parodies: Option<Arr<Str>>,
+    pub characters: Option<Arr<Str>>,
+}
+
+#[derive(Debug, Default)]
+pub struct Chapter {
+    pub comic_id: i64,
+    pub id: i64,
+    pub name: Str,
+    pub pages_count: i64,
 }
 
 #[derive(Debug)]
@@ -58,58 +102,24 @@ pub mod sql {}
 pub mod raw {
     use super::*;
 
-    #[derive(Debug)]
-    pub struct Source {
-        pub id: SourceId,
-        pub url: &'static str, //key ?
-        pub name: &'static str,
-        pub icon: &'static str,
-        pub languages: &'static [Lang],
-        pub is_nsfw: bool,
-        pub is_pirate: bool,
-    }
-
     pub type Index = Arr<Item>;
     #[derive(Debug)]
     pub struct Item {
         pub source_id: SourceId,
-        pub path: Str,
+        pub url: Str,
+        pub cover_thumbnail_url: Str,
         pub name: Str,
         pub r#type: ItemType,
-
-        pub cover_thumbnail: Str,
     }
 
-    #[derive(Debug, Default)]
+    #[derive(Debug)]
     pub struct Comic {
-        pub cover: Str, // don't save in database
-
         pub source_id: i64,
-        pub item_id: i64,
+        pub cover_url: Str,
         pub names: Arr<Str>,
-        pub chapters: Arr<Chapter>,
-        pub last_chapter_num: i64,
-        pub last_page_num: i64,
-
         pub description: Option<Str>,
-
-        pub r#type: Option<ComicType>,
-        pub publish_status: Option<Status>,
-        pub scan_status: Option<Status>,
-        pub languages: Option<Arr<Str>>,
-        pub genres: Option<Arr<Str>>,
-        pub authors: Option<Arr<Str>>,
-        pub groups: Option<Arr<Str>>,
-        pub parodies: Option<Arr<Str>>,
-        pub characters: Option<Arr<Str>>,
-    }
-
-    #[derive(Debug, Default)]
-    pub struct Chapter {
-        pub comic_id: i64,
-        pub id: i64,
-        pub name: Str,
-        pub pages_count: i64,
+        pub chapters: Arr<Chapter>,
+        pub filter: Filter,
     }
 }
 
