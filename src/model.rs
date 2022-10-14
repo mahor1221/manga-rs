@@ -1,3 +1,9 @@
+use crate::error::Result;
+
+trait Download {
+    fn download() -> Result<()>;
+}
+
 #[derive(Debug)]
 pub struct Source {
     pub id: SourceId,
@@ -17,18 +23,41 @@ pub type Index = Arr<Item>;
 pub struct Item {
     pub source_icon: Str,
     pub source_name: Str,
-    pub id: i64,
+    //pub id: i64,
     pub url: Str,
-    cover_thumbnail_url: Str,
+    pub cover_thumbnail_url: Str,
     pub name: Str,
-    pub r#type: ItemType,
+    pub item_type: ItemType,
+}
+impl From<raw::Item> for Item {
+    fn from(
+        raw::Item {
+            source_id,
+            url,
+            cover_thumbnail_url,
+            name,
+            item_type,
+        }: raw::Item,
+    ) -> Self {
+        Self {
+            url,
+            cover_thumbnail_url,
+            name,
+            item_type,
+        }
+    }
+}
+impl Download for Item {
+    fn download() -> Result<()> {
+        todo!()
+    }
 }
 
 #[derive(Debug)]
 pub struct Comic {
     pub source_id: i64,
     pub item_id: i64,
-    cover_url: Str,
+    pub cover_url: Str,
     pub names: Arr<Str>,
     pub description: Option<Str>,
     pub chapters: Arr<Chapter>,
@@ -39,7 +68,7 @@ pub struct Comic {
 
 #[derive(Debug, Default)]
 pub struct Filter {
-    pub r#type: Option<ComicType>,
+    pub comic_type: Option<ComicType>,
     pub publish_status: Option<Status>,
     pub scan_status: Option<Status>,
     pub languages: Option<Arr<Str>>,
@@ -109,12 +138,14 @@ pub mod raw {
         pub url: Str,
         pub cover_thumbnail_url: Str,
         pub name: Str,
-        pub r#type: ItemType,
+        pub item_type: ItemType,
     }
 
     #[derive(Debug)]
     pub struct Comic {
         pub source_id: i64,
+        pub source_icon: Str,
+        pub source_name: Str,
         pub cover_url: Str,
         pub names: Arr<Str>,
         pub description: Option<Str>,

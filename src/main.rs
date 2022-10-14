@@ -4,11 +4,13 @@
 // TODO: HasComic need trait bound?
 // TODO: how to handle pagination
 // TODO: redownload missing files
-//
+// TODO: cheaper or better IsSource
+// TODO: cache source_icon
 // NEXT: Downloader
+
+// disabled lints in debug
+#![cfg_attr(debug_assertions, allow(dead_code, unused, unused))]
 #![forbid(unsafe_code)]
-// disable some lints for debug builds
-//#![cfg_attr(debug_assertions, allow(dead_code, unused, unused))]
 
 mod error;
 mod ext;
@@ -42,21 +44,14 @@ fn latest(source_url: &str) -> Result<Index> {
         "latest" => TestSource::latest(),
         _ => Err(Error::LatestNotSupported),
     }?;
+
+    Ok(index)
 }
 fn popular(source_url: &str) -> Result<Index> {
     let index = match source_url {
         "popular" => TestSource::popular(),
         _ => Err(Error::PopularNotSupported),
     }?;
+
+    Ok(index)
 }
-
-//fn insert_index() {
-//
-//}
-
-//impl Item {
-//    pub fn cover_thumbnail(&self) -> Result<> {
-//            
-//
-//    }
-//}

@@ -17,6 +17,8 @@ impl TestSource {
             html.select(&items)
                 .map(|e| {
                     let source_id = Self::source().id;
+                    let source_icon = Self::source().icon;
+                    let source_name = Self::source().name;
 
                     let path = e.select(&path).next()?.value().attr("href")?;
                     let source_url = Self::source().url;
@@ -33,14 +35,14 @@ impl TestSource {
                         .to_owned()
                         .into_boxed_str();
 
-                    let r#type = ItemType::Comic;
+                    let item_type = ItemType::Comic;
 
                     Some(raw::Item {
                         source_id,
                         url,
                         name,
                         cover_thumbnail_url,
-                        r#type,
+                        item_type,
                     })
                 })
                 .collect::<Option<raw::Index>>()
