@@ -6,7 +6,7 @@ trait Download {
 
 #[derive(Debug)]
 pub struct Source {
-    pub id: SourceId,
+    pub id: &'static SourceId,
     pub url: &'static str, //key ?
     pub name: &'static str,
     pub icon: &'static str,
@@ -18,11 +18,18 @@ pub struct Source {
 type Str = Box<str>;
 type Arr<T> = Box<[T]>;
 
-pub type Index = Arr<Item>;
+#[derive(Debug)]
+pub struct Index(Vec<Item>);
+impl From<raw::Index> for Index {
+    fn from(raw_index: raw::Index) -> Self {
+        Index(raw_index.into_iter().map(|i| Item::from(i)).collect())
+    }
+}
+
 #[derive(Debug)]
 pub struct Item {
-    pub source_icon: Str,
-    pub source_name: Str,
+    pub source_icon: &'static str,
+    pub source_name: &'static str,
     //pub id: i64,
     pub url: Str,
     pub cover_thumbnail_url: Str,
@@ -30,23 +37,18 @@ pub struct Item {
     pub item_type: ItemType,
 }
 impl From<raw::Item> for Item {
-    fn from(
-        raw::Item {
-            source_id,
-            url,
-            cover_thumbnail_url,
-            name,
-            item_type,
-        }: raw::Item,
-    ) -> Self {
+    fn from(raw_item: raw::Item) -> Self {
         Self {
-            url,
-            cover_thumbnail_url,
-            name,
-            item_type,
+            source_icon: raw_item.source_icon,
+            source_name: raw_item.source_name,
+            url: raw_item.url,
+            cover_thumbnail_url: raw_item.cover_thumbnail_url,
+            name: raw_item.name,
+            item_type: raw_item.item_type,
         }
     }
 }
+
 impl Download for Item {
     fn download() -> Result<()> {
         todo!()
@@ -131,10 +133,12 @@ pub mod sql {}
 pub mod raw {
     use super::*;
 
-    pub type Index = Arr<Item>;
+    pub type Index = Vec<Item>;
     #[derive(Debug)]
     pub struct Item {
-        pub source_id: SourceId,
+        pub source_id: &'static SourceId,
+        pub source_icon: &'static str,
+        pub source_name: &'static str,
         pub url: Str,
         pub cover_thumbnail_url: Str,
         pub name: Str,
@@ -143,9 +147,7 @@ pub mod raw {
 
     #[derive(Debug)]
     pub struct Comic {
-        pub source_id: i64,
-        pub source_icon: Str,
-        pub source_name: Str,
+        pub source_id: &'static SourceId,
         pub cover_url: Str,
         pub names: Arr<Str>,
         pub description: Option<Str>,

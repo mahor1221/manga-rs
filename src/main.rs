@@ -45,7 +45,7 @@ fn latest(source_url: &str) -> Result<Index> {
         _ => Err(Error::LatestNotSupported),
     }?;
 
-    Ok(index)
+    Ok(index.into())
 }
 fn popular(source_url: &str) -> Result<Index> {
     let index = match source_url {
@@ -53,5 +53,5 @@ fn popular(source_url: &str) -> Result<Index> {
         _ => Err(Error::PopularNotSupported),
     }?;
 
-    Ok(index)
+    Ok(index.into())
 }

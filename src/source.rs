@@ -9,6 +9,11 @@ pub struct TestSource;
 impl TestSource {
     fn index(html: &Html) -> Result<raw::Index> {
         let index = {
+            let source = Self::source();
+            let source_id = source.id;
+            let source_icon = source.icon;
+            let source_name = source.name;
+
             let items = Selector::parse("div.gallery")?;
             let name = Selector::parse("a.cover div.caption")?;
             let path = Selector::parse("a")?;
@@ -16,10 +21,6 @@ impl TestSource {
 
             html.select(&items)
                 .map(|e| {
-                    let source_id = Self::source().id;
-                    let source_icon = Self::source().icon;
-                    let source_name = Self::source().name;
-
                     let path = e.select(&path).next()?.value().attr("href")?;
                     let source_url = Self::source().url;
                     let url = format!("{source_url}{path}").into_boxed_str();
@@ -39,6 +40,8 @@ impl TestSource {
 
                     Some(raw::Item {
                         source_id,
+                        source_icon,
+                        source_name,
                         url,
                         name,
                         cover_thumbnail_url,
@@ -71,7 +74,7 @@ impl TestSource {
 impl IsSource for TestSource {
     fn source() -> Source {
         Source {
-            id: SourceId::TestSource,
+            id: &SourceId::TestSource,
             url: "https://test.com",
             name: "test.com",
             icon: "https://test.com/logo.svg",
@@ -83,7 +86,7 @@ impl IsSource for TestSource {
 }
 impl HasComic for TestSource {
     fn comic(html: &Html) -> Result<raw::Comic> {
-        let source_id = Self::source().id as i64;
+        let source_id = Self::source().id;
 
         let cover_url = {
             let url = Selector::parse("#cover img")?;
